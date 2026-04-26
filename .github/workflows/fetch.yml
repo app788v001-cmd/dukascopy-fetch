@@ -1,10 +1,8 @@
-name: Fetch Dukascopy chunk
+name: Fetch chunk
 on:
   workflow_dispatch:
-
 permissions:
   contents: write
-
 jobs:
   fetch:
     name: chunk-${{ matrix.chunk }}
@@ -12,34 +10,19 @@ jobs:
     timeout-minutes: 350
     strategy:
       fail-fast: false
-      max-parallel: 8
+      max-parallel: 3
       matrix:
-        chunk: [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19]
+        chunk: [0,1,2,3,4]
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - name: Install httpx
-        run: pip install 'httpx[http2]==0.28.1'
-
-      - name: Generate chunk list
-        run: python gen_chunks.py
-
-      - name: Download chunk
-        env:
-          OUT_DIR: data
+        with: {python-version: '3.12'}
+      - run: pip install 'httpx[http2]==0.28.1'
+      - run: python gen_chunks.py
+      - env: {OUT_DIR: data}
         run: python download_chunk.py chunks/chunk_$(printf "%03d" ${{ matrix.chunk }}).json 12
-
-      - name: Pack
-        run: tar -cf chunk-${{ matrix.chunk }}.tar -C data .
-
-      - name: Upload to release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - run: tar -cf chunk-${{ matrix.chunk }}.tar -C data .
+      - env: {GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}"}
         run: |
-          TAG="data-v1"
-          gh release create "$TAG" --title "Dukascopy data" --notes "Auto" --target "$GITHUB_SHA" 2>/dev/null || true
-          gh release upload "$TAG" "chunk-${{ matrix.chunk }}.tar" --clobber
+          gh release create data-v1 --title "Dukascopy data" --notes "Auto" --target "$GITHUB_SHA" 2>/dev/null || true
+          gh release upload data-v1 "chunk-${{ matrix.chunk }}.tar" --clobber
